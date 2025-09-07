@@ -10,8 +10,8 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-// Import database configuration (FIXED)
-import pool from "./src/config/db.js";
+// Import database configuration
+import pool from "./config/db.js";
 
 // Load environment variables
 dotenv.config();
@@ -370,8 +370,8 @@ app.get("/api/packages", async (req, res) => {
   try {
     const { city, code } = req.query;
 
-    let sql = `
-      SELECT 
+    // FIX: Removed leading newline and whitespace from the SQL string
+    let sql = `SELECT 
         p.id, 
         p.name AS package_name, 
         p.price, 
@@ -1080,3 +1080,4 @@ app.listen(PORT, () => {
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`📡 Server URL: http://localhost:${PORT}`);
 });
+
