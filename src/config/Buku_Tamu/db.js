@@ -39,35 +39,7 @@ const pool = mysql.createPool(dbConfig);
 // Test koneksi database
 const testConnection = async () => {
 
-    // Tambahkan di config/db.js
-let dbConfig;
-
-if (process.env.DATABASE_URL) {
-  // Parse DATABASE_URL format: mysql://user:pass@host:port/dbname
-  const url = new URL(process.env.DATABASE_URL);
-  dbConfig = {
-    host: url.hostname,
-    port: parseInt(url.port) || 3306,
-    user: url.username,
-    password: url.password,
-    database: url.pathname.slice(1), // Remove leading '/'
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
-  };
-} else {
-  // Fallback ke konfigurasi manual
-  dbConfig = {
-    host: isProd ? process.env.DB_HOST_PROD : process.env.DB_HOST_DEV,
-    port: parseInt(isProd ? process.env.DB_PORT_PROD : process.env.DB_PORT_DEV) || 3306,
-    user: isProd ? process.env.DB_USER_PROD : process.env.DB_USER_DEV,
-    password: isProd ? process.env.DB_PASSWORD_PROD : process.env.DB_PASSWORD_DEV,
-    database: isProd ? process.env.DB_NAME_PROD : process.env.DB_NAME_DEV,
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
-  };
-}
+    
   let connection;
   try {
     console.log("🔄 Testing database connection...");
