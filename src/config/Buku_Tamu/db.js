@@ -4,26 +4,23 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const isProd = process.env.NODE_ENV === "production";
+// Deteksi otomatis apakah sedang jalan di Railway
+// Railway selalu set RAILWAY_STATIC_URL di environment
+const isRailway = !!process.env.RAILWAY_STATIC_URL;
+const isProd = process.env.NODE_ENV === "production" || isRailway;
 
-console.log("🔍 Environment:", process.env.NODE_ENV);
-console.log("🔍 Is Production:", isProd);
+console.log("🌍 Running on:", isProd ? "Railway (Production)" : "Local (Development)");
 
 // Konfigurasi database berdasarkan environment
 const dbConfig = {
   host: isProd ? process.env.DB_HOST_PROD : process.env.DB_HOST_DEV,
-  port: parseInt(isProd ? process.env.DB_PORT_PROD : process.env.DB_PORT_DEV) || 3306,
+  port: parseInt(isProd ? process.env.DB_PORT_PROD : process.env.DB_PORT_DEV),
   user: isProd ? process.env.DB_USER_PROD : process.env.DB_USER_DEV,
   password: isProd ? process.env.DB_PASSWORD_PROD : process.env.DB_PASSWORD_DEV,
   database: isProd ? process.env.DB_NAME_PROD : process.env.DB_NAME_DEV,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  acquireTimeout: 30000,
-  idleTimeout: 900000,
-  enableKeepAlive: true,
-  keepAliveInitialDelay: 0,
-  timezone: "+00:00" // Railway biasanya menggunakan UTC
 };
 
 console.log("🔍 Database Config:", {
@@ -36,47 +33,40 @@ console.log("🔍 Database Config:", {
 
 const pool = mysql.createPool(dbConfig);
 
-// Test koneksi database
+// Test koneksi ke database
 const testConnection = async () => {
   let connection;
   try {
     console.log("🔄 Testing database connection...");
     connection = await pool.getConnection();
-    
-    // Test query sederhana
-    const [rows] = await connection.execute('SELECT 1 as test');
+
+    const [rows] = await connection.execute("SELECT 1 as test");
     console.log("✅ Database connected successfully!");
     console.log("✅ Test query result:", rows[0]);
-    
+
     return true;
   } catch (err) {
     console.error("❌ Database connection failed:");
     console.error("   Error code:", err.code);
     console.error("   Error message:", err.message);
     console.error("   Error errno:", err.errno);
-    
-    // Detail error untuk debugging
-    if (err.code === 'ECONNREFUSED') {
+
+    if (err.code === "ECONNREFUSED") {
       console.error("   🔍 Connection refused - check host and port");
-    } else if (err.code === 'ER_ACCESS_DENIED_ERROR') {
+    } else if (err.code === "ER_ACCESS_DENIED_ERROR") {
       console.error("   🔍 Access denied - check username and password");
-    } else if (err.code === 'ENOTFOUND') {
+    } else if (err.code === "ENOTFOUND") {
       console.error("   🔍 Host not found - check hostname");
     }
-    
+
     return false;
   } finally {
-    if (connection) {
-      connection.release();
-    }
+    if (connection) connection.release();
   }
 };
 
-
-
-// Jalankan test koneksi saat modul dimuat
+// Jalankan test koneksi saat startup
 testConnection();
 
-// Export pool dan test function
 export default pool;
 export { testConnection };
