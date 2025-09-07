@@ -38,8 +38,6 @@ const pool = mysql.createPool(dbConfig);
 
 // Test koneksi database
 const testConnection = async () => {
-
-    
   let connection;
   try {
     console.log("🔄 Testing database connection...");
