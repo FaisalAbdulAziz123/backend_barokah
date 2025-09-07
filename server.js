@@ -11,7 +11,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 // Import database configuration
-import pool from "./src/config/Buku_Tamu/db.js ";
+import pool from "./config/db.js";
 
 // Load environment variables
 dotenv.config();
