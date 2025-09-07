@@ -12,7 +12,7 @@ import multer from "multer";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from 'url';
-// import pool from "./src/config/Buku_Tamu/db"; // pastikan file ini ada
+import pool from "./src/config/Buku_Tamu/db"; // pastikan file ini ada
 
 dotenv.config();
 const saltRounds = 10;
@@ -70,6 +70,20 @@ app.get("/api", async (req, res) => {
   });
 });
 
+// Tes endpoint
+app.get("/", (req, res) => {
+  res.send("Backend Barokah API berjalan 🚀");
+});
+
+app.get("/api/test-db", async (req, res) => {
+  try {
+    const [rows] = await pool.query("SELECT NOW() as waktu");
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    console.error("❌ Query gagal:", err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 // ------------------ Helper ------------------
 function genRandomSuffix(len = 8) {
