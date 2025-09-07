@@ -4,17 +4,16 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Deteksi otomatis apakah sedang jalan di Railway
-// Railway selalu set RAILWAY_STATIC_URL di environment
-const isRailway = !!process.env.RAILWAY_STATIC_URL;
+// Deteksi environment
+const isRailway = !!process.env.RAILWAY_ENVIRONMENT || !!process.env.RAILWAY_STATIC_URL;
 const isProd = process.env.NODE_ENV === "production" || isRailway;
 
 console.log("🌍 Running on:", isProd ? "Railway (Production)" : "Local (Development)");
 
-// Konfigurasi database berdasarkan environment
+// Konfigurasi database
 const dbConfig = {
   host: isProd ? process.env.DB_HOST_PROD : process.env.DB_HOST_DEV,
-  port: parseInt(isProd ? process.env.DB_PORT_PROD : process.env.DB_PORT_DEV),
+  port: parseInt(isProd ? process.env.DB_PORT_PROD : process.env.DB_PORT_DEV, 10),
   user: isProd ? process.env.DB_USER_PROD : process.env.DB_USER_DEV,
   password: isProd ? process.env.DB_PASSWORD_PROD : process.env.DB_PASSWORD_DEV,
   database: isProd ? process.env.DB_NAME_PROD : process.env.DB_NAME_DEV,
@@ -28,7 +27,7 @@ console.log("🔍 Database Config:", {
   port: dbConfig.port,
   user: dbConfig.user,
   database: dbConfig.database,
-  password: dbConfig.password ? "***" : "NOT_SET"
+  password: dbConfig.password ? "***" : "NOT_SET",
 });
 
 const pool = mysql.createPool(dbConfig);
@@ -57,6 +56,8 @@ const testConnection = async () => {
       console.error("   🔍 Access denied - check username and password");
     } else if (err.code === "ENOTFOUND") {
       console.error("   🔍 Host not found - check hostname");
+    } else if (err.code === "ETIMEDOUT") {
+      console.error("   🔍 Connection timeout - check firewall or Railway plan");
     }
 
     return false;
