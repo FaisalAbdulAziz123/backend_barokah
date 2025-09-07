@@ -1,72 +1,54 @@
 // config/db.js
 import mysql from "mysql2/promise";
-import dotenv from "dotenv";
 
-dotenv.config();
-
-// Deteksi environment
-const isRailway = !!process.env.RAILWAY_ENVIRONMENT || !!process.env.RAILWAY_STATIC_URL;
-const isProd = process.env.NODE_ENV === "production" || isRailway;
-
-console.log("🌍 Running on:", isProd ? "Railway (Production)" : "Local (Development)");
-
-// Konfigurasi database
+// Variabel koneksi database akan dibaca langsung dari environment variables
+// yang disediakan oleh Railway (MYSQLHOST, MYSQLUSER, dll.)
 const dbConfig = {
-  host: isProd ? process.env.DB_HOST_PROD : process.env.DB_HOST_DEV,
-  port: parseInt(isProd ? process.env.DB_PORT_PROD : process.env.DB_PORT_DEV, 10),
-  user: isProd ? process.env.DB_USER_PROD : process.env.DB_USER_DEV,
-  password: isProd ? process.env.DB_PASSWORD_PROD : process.env.DB_PASSWORD_DEV,
-  database: isProd ? process.env.DB_NAME_PROD : process.env.DB_NAME_DEV,
+  host: process.env.MYSQLHOST,
+  port: parseInt(process.env.MYSQLPORT, 10),
+  user: process.env.MYSQLUSER,
+  password: process.env.MYSQLPASSWORD,
+  database: process.env.MYSQLDATABASE,
   waitForConnections: true,
-  connectionLimit: 10,
+  connectionLimit: 15, // Ditingkatkan sedikit untuk production
   queueLimit: 0,
 };
 
-console.log("🔍 Database Config:", {
+// Log untuk debugging saat aplikasi startup
+console.log("✅ Initializing database connection pool...");
+console.log("🔍 Using Database Config:", {
   host: dbConfig.host,
   port: dbConfig.port,
   user: dbConfig.user,
   database: dbConfig.database,
-  password: dbConfig.password ? "***" : "NOT_SET",
+  password: dbConfig.password ? "***" : "NOT_SET", // Jangan log password
 });
+
+// Validasi: Pastikan semua variabel penting ada
+if (!dbConfig.host || !dbConfig.user || !dbConfig.password || !dbConfig.database || !dbConfig.port) {
+  console.error("❌ FATAL ERROR: Database environment variables are missing!");
+  console.error("Please ensure MYSQLHOST, MYSQLUSER, MYSQLPASSWORD, MYSQLDATABASE, and MYSQLPORT are set.");
+  // Menghentikan aplikasi jika konfigurasi database tidak lengkap
+  // process.exit(1); // Uncomment baris ini jika Anda ingin aplikasi berhenti total saat error
+}
 
 const pool = mysql.createPool(dbConfig);
 
-// Test koneksi ke database
+// Fungsi untuk mengetes koneksi
 const testConnection = async () => {
   let connection;
   try {
     console.log("🔄 Testing database connection...");
     connection = await pool.getConnection();
-
-    const [rows] = await connection.execute("SELECT 1 as test");
     console.log("✅ Database connected successfully!");
-    console.log("✅ Test query result:", rows[0]);
-
-    return true;
   } catch (err) {
-    console.error("❌ Database connection failed:");
-    console.error("   Error code:", err.code);
-    console.error("   Error message:", err.message);
-    console.error("   Error errno:", err.errno);
-
-    if (err.code === "ECONNREFUSED") {
-      console.error("   🔍 Connection refused - check host and port");
-    } else if (err.code === "ER_ACCESS_DENIED_ERROR") {
-      console.error("   🔍 Access denied - check username and password");
-    } else if (err.code === "ENOTFOUND") {
-      console.error("   🔍 Host not found - check hostname");
-    } else if (err.code === "ETIMEDOUT") {
-      console.error("   🔍 Connection timeout - check firewall or Railway plan");
-    }
-
-    return false;
+    console.error("❌ Database connection failed:", err.message);
   } finally {
     if (connection) connection.release();
   }
 };
 
-// Jalankan test koneksi saat startup
+// Jalankan tes koneksi saat modul ini di-load
 testConnection();
 
 export default pool;
