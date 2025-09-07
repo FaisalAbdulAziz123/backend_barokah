@@ -8,7 +8,7 @@ const isProd = process.env.NODE_ENV === "production";
 
 const pool = mysql.createPool({
   host: isProd ? process.env.DB_HOST_PROD : process.env.DB_HOST_DEV,
-  port: isProd ? Number(process.env.DB_PORT_PROD) : Number(process.env.DB_PORT_DEV),
+  port: isProd ? process.env.DB_PORT_PROD : process.env.DB_PORT_DEV,
   user: isProd ? process.env.DB_USER_PROD : process.env.DB_USER_DEV,
   password: isProd ? process.env.DB_PASSWORD_PROD : process.env.DB_PASSWORD_DEV,
   database: isProd ? process.env.DB_NAME_PROD : process.env.DB_NAME_DEV,
@@ -17,14 +17,14 @@ const pool = mysql.createPool({
   queueLimit: 0,
 });
 
-// Test koneksi (biar jelas kalau error di Railway)
+// 🔎 Tes koneksi langsung saat server jalan
 (async () => {
   try {
     const conn = await pool.getConnection();
-    console.log(`✅ DB Connected to ${isProd ? "Production" : "Development"} (${conn.config.host})`);
+    console.log("✅ Database connected!");
     conn.release();
   } catch (err) {
-    console.error("❌ DB Connection Error:", err.message);
+    console.error("❌ Database connection failed:", err.message);
   }
 })();
 
