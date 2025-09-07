@@ -10,8 +10,8 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-// Import database configuration
-import pool from "./config/db.js";
+// Import database configuration (FIXED PATH)
+import pool from "./src/config/db.js"
 
 // Load environment variables
 dotenv.config();
@@ -124,11 +124,9 @@ app.post("/api/bookings", async (req, res) => {
     await connection.beginTransaction();
 
     // Ambil city_code dari package
-    const getPackageQuery = `
-      SELECT p.id AS package_id, p.name AS package_name, c.city_code, c.city_name 
+    const getPackageQuery = `SELECT p.id AS package_id, p.name AS package_name, c.city_code, c.city_name 
       FROM packages p LEFT JOIN cities c ON p.city_id = c.id 
-      WHERE p.id = ? LIMIT 1
-    `;
+      WHERE p.id = ? LIMIT 1`;
 
     const [pkgRows] = await connection.execute(getPackageQuery, [package_id]);
     
@@ -146,10 +144,8 @@ app.post("/api/bookings", async (req, res) => {
     const bookingCode = `${prefix}-${genRandomSuffix(8)}`;
 
     // Insert booking
-    const insertBookingSql = `
-      INSERT INTO bookings (package_id, booking_id, customer_name, customer_email, total_price, status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, 'menunggu_pembayaran', NOW(), NOW())
-    `;
+    const insertBookingSql = `INSERT INTO bookings (package_id, booking_id, customer_name, customer_email, total_price, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 'menunggu_pembayaran', NOW(), NOW())`;
     
     const [result] = await connection.execute(insertBookingSql, [
       package_id, bookingCode, customer_name, customer_email, total_price
@@ -158,10 +154,8 @@ app.post("/api/bookings", async (req, res) => {
     const newBookingId = result.insertId;
 
     // Insert peserta ke participants
-    const insertParticipantSql = `
-      INSERT INTO participants (booking_id, name, phone, address, birth_place, status, created_at)
-      VALUES (?, ?, ?, ?, ?, 'valid', NOW())
-    `;
+    const insertParticipantSql = `INSERT INTO participants (booking_id, name, phone, address, birth_place, status, created_at)
+      VALUES (?, ?, ?, ?, ?, 'valid', NOW())`;
     
     for (const participant of participants) {
       await connection.execute(insertParticipantSql, [
@@ -195,13 +189,11 @@ app.post("/api/bookings", async (req, res) => {
 // GET /api/bookings - semua booking (admin)
 app.get("/api/bookings", async (req, res) => {
   try {
-    const query = `
-      SELECT b.id, b.booking_id AS bookingCode, b.package_id, p.name AS package_name, 
+    const query = `SELECT b.id, b.booking_id AS bookingCode, b.package_id, p.name AS package_name, 
              b.customer_name, b.customer_email, b.total_price, b.status, b.created_at
       FROM bookings b
       LEFT JOIN packages p ON b.package_id = p.id
-      ORDER BY b.created_at DESC
-    `;
+      ORDER BY b.created_at DESC`;
     
     const [rows] = await pool.execute(query);
     res.status(200).json({ success: true, data: rows });
@@ -216,8 +208,7 @@ app.get("/api/bookings/:id", async (req, res) => {
   const id = req.params.id;
 
   try {
-    const bookingQuery = `
-      SELECT 
+    const bookingQuery = `SELECT 
         b.id,
         b.booking_id AS bookingCode,
         b.package_id,
@@ -230,8 +221,7 @@ app.get("/api/bookings/:id", async (req, res) => {
       FROM bookings b
       LEFT JOIN packages p ON b.package_id = p.id
       WHERE b.id = ?
-      LIMIT 1
-    `;
+      LIMIT 1`;
 
     const [bookingRows] = await pool.execute(bookingQuery, [id]);
     
@@ -244,11 +234,9 @@ app.get("/api/bookings/:id", async (req, res) => {
 
     const booking = bookingRows[0];
 
-    const participantsQuery = `
-      SELECT id, name, status, scanned_at, created_at, updated_at
+    const participantsQuery = `SELECT id, name, status, scanned_at, created_at, updated_at
       FROM participants
-      WHERE booking_id = ?
-    `;
+      WHERE booking_id = ?`;
 
     const [participantsRows] = await pool.execute(participantsQuery, [id]);
     booking.participants = participantsRows;
@@ -370,7 +358,6 @@ app.get("/api/packages", async (req, res) => {
   try {
     const { city, code } = req.query;
 
-    // FIX: Removed leading newline and whitespace from the SQL string
     let sql = `SELECT 
         p.id, 
         p.name AS package_name, 
@@ -379,8 +366,7 @@ app.get("/api/packages", async (req, res) => {
         c.city_name, 
         c.city_code
       FROM packages p
-      JOIN cities c ON p.city_id = c.id
-    `;
+      JOIN cities c ON p.city_id = c.id`;
     const params = [];
 
     if (city) {
@@ -404,12 +390,10 @@ app.get("/api/packages/:id", async (req, res) => {
   const { id } = req.params;
   
   try {
-    const sql = `
-      SELECT p.*, c.city_name, c.city_code 
+    const sql = `SELECT p.*, c.city_name, c.city_code 
       FROM packages p 
       LEFT JOIN cities c ON p.city_id = c.id
-      WHERE p.id = ?
-    `;
+      WHERE p.id = ?`;
     const [results] = await pool.execute(sql, [id]);
     
     if (results.length === 0) {
@@ -437,11 +421,9 @@ app.post("/api/packages", async (req, res) => {
   } = req.body;
 
   try {
-    const sql = `
-      INSERT INTO packages 
+    const sql = `INSERT INTO packages 
       (name, city_id, trip_code, description, price, imageUrl, duration, max_participants, is_active, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-    `;
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`;
 
     const [result] = await pool.execute(sql, [
       name, city_id, trip_code, description, price, imageUrl, duration, max_participants, is_active || 1
@@ -473,12 +455,10 @@ app.put("/api/packages/:id", async (req, res) => {
   } = req.body;
 
   try {
-    const sql = `
-      UPDATE packages 
+    const sql = `UPDATE packages 
       SET name = ?, city_id = ?, trip_code = ?, description = ?, price = ?, 
           imageUrl = ?, duration = ?, max_participants = ?, is_active = ?, updated_at = NOW()
-      WHERE id = ?
-    `;
+      WHERE id = ?`;
 
     const [result] = await pool.execute(sql, [
       name, city_id, trip_code, description, price, imageUrl, duration, max_participants, is_active, id
@@ -538,10 +518,8 @@ app.post("/api/transactions", async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    const insertTransactionSql = `
-      INSERT INTO transactions (booking_id, payment_type, amount_paid, payment_method, va_number, created_at)
-      VALUES (?, ?, ?, ?, ?, NOW())
-    `;
+    const insertTransactionSql = `INSERT INTO transactions (booking_id, payment_type, amount_paid, payment_method, va_number, created_at)
+      VALUES (?, ?, ?, ?, ?, NOW())`;
     
     await connection.execute(insertTransactionSql, [
       bookingDbId,
@@ -719,10 +697,8 @@ app.post("/api/peserta", async (req, res) => {
   const tanggal = new Date().toISOString().split('T')[0];
   
   try {
-    const sql = `
-      INSERT INTO peserta (nama, alamat, tempat_lahir, tanggal_lahir, telepon, tujuan, tanggal)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `;
+    const sql = `INSERT INTO peserta (nama, alamat, tempat_lahir, tanggal_lahir, telepon, tujuan, tanggal)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`;
     
     const [result] = await pool.execute(sql, [
       nama, alamat, tempat_lahir, tanggal_lahir, telepon, tujuan, tanggal
@@ -750,13 +726,11 @@ app.post("/api/marketing", upload.single("foto_kunjungan"), async (req, res) => 
   const foto_kunjungan = req.file ? req.file.filename : null;
 
   try {
-    const sql = `
-      INSERT INTO marketing 
+    const sql = `INSERT INTO marketing 
       (tanggal, nama, alamat, perusahaan, nama_kordinator, kota_kordinator, 
        rencana_wisata, rencana_pemberangkatan, destinasi_tujuan, 
        jenis_trip, telepon, foto_kunjungan, catatan)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     const [result] = await pool.execute(sql, [
       tanggal, nama, alamat, perusahaan, nama_kordinator, kota_kordinator,
@@ -976,11 +950,9 @@ app.put("/api/admin/peserta/:id", async (req, res) => {
   const { nama, alamat, tempat_lahir, tanggal_lahir, telepon, tujuan } = req.body;
   
   try {
-    const sql = `
-      UPDATE peserta 
+    const sql = `UPDATE peserta 
       SET nama = ?, alamat = ?, tempat_lahir = ?, tanggal_lahir = ?, telepon = ?, tujuan = ?
-      WHERE id = ?
-    `;
+      WHERE id = ?`;
     
     const [result] = await pool.execute(sql, [
       nama, alamat, tempat_lahir, tanggal_lahir, telepon, tujuan, id
@@ -1011,26 +983,22 @@ app.put("/api/admin/marketing/:id", upload.single('foto_kunjungan'), async (req,
     
     if (req.file) {
       const foto_kunjungan = req.file.filename;
-      sql = `
-        UPDATE marketing 
+      sql = `UPDATE marketing 
         SET nama = ?, perusahaan = ?, alamat = ?, nama_kordinator = ?, kota_kordinator = ?,
             rencana_wisata = ?, rencana_pemberangkatan = ?, destinasi_tujuan = ?,
             jenis_trip = ?, telepon = ?, foto_kunjungan = ?, catatan = ?
-        WHERE id = ?
-      `;
+        WHERE id = ?`;
       params = [
         nama, perusahaan, alamat, nama_kordinator, kota_kordinator,
         rencana_wisata, rencana_pemberangkatan, destinasi_tujuan,
         jenis_trip, telepon, foto_kunjungan, catatan, id
       ];
     } else {
-      sql = `
-        UPDATE marketing 
+      sql = `UPDATE marketing 
         SET nama = ?, perusahaan = ?, alamat = ?, nama_kordinator = ?, kota_kordinator = ?,
             rencana_wisata = ?, rencana_pemberangkatan = ?, destinasi_tujuan = ?,
             jenis_trip = ?, telepon = ?, catatan = ?
-        WHERE id = ?
-      `;
+        WHERE id = ?`;
       params = [
         nama, perusahaan, alamat, nama_kordinator, kota_kordinator,
         rencana_wisata, rencana_pemberangkatan, destinasi_tujuan,
