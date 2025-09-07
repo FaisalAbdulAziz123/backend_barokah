@@ -12,6 +12,7 @@ import multer from "multer";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from 'url';
+// import pool from "./src/config/Buku_Tamu/db"; // pastikan file ini ada
 
 dotenv.config();
 const saltRounds = 10;
@@ -57,6 +58,17 @@ const storage = multer.diskStorage({
   }
 });
 const upload = multer({ storage: storage });
+
+
+app.get("/api", async (req, res) => {
+  db.query("SELECT 1 + 1 AS result", (err, rows) => {
+    if (err) {
+      console.error("❌ DB Connection Error:", err.message);
+      return res.status(500).json({ success: false, message: "Kesalahan server DB" });
+    }
+    res.json({ success: true, message: "API Barokah jalan 🚀", db: rows[0] });
+  });
+});
 
 
 // ------------------ Helper ------------------
