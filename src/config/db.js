@@ -1,61 +1,57 @@
+// config/db.js
 import mysql from "mysql2/promise";
 
-// Ambil semua variabel environment yang dibutuhkan
-const {
-    MYSQLHOST,
-    MYSQLUSER,
-    MYSQLPASSWORD,
-    MYSQLDATABASE, // Ini yang paling penting untuk error 'No database selected'
-    MYSQLPORT
-} = process.env;
+// Variabel koneksi database akan dibaca langsung dari environment variables
+// yang disediakan oleh Railway (MYSQLHOST, MYSQLUSER, dll.)
+const dbConfig = {
+  host: process.env.MYSQLHOST,
+  port: process.env.MYSQLPORT ? parseInt(process.env.MYSQLPORT, 10) : undefined,
+  user: process.env.MYSQLUSER,
+  password: process.env.MYSQLPASSWORD,
+  database: process.env.MYSQLDATABASE,
+  waitForConnections: true,
+  connectionLimit: 15, // Ditingkatkan sedikit untuk production
+  queueLimit: 0,
+};
 
-// Periksa apakah semua variabel ada saat aplikasi berjalan di Railway
-if (process.env.RAILWAY_ENVIRONMENT && (!MYSQLHOST || !MYSQLUSER || !MYSQLPASSWORD || !MYSQLDATABASE || !MYSQLPORT)) {
-    console.error("❌ FATAL ERROR: Database environment variables are missing in Railway!");
-    console.log("Pastikan variabel referensi MYSQLHOST, MYSQLUSER, dll. sudah diatur di layanan backend.");
-    process.exit(1); // Hentikan aplikasi jika variabel penting tidak ada
+// Log untuk debugging saat aplikasi startup
+console.log("✅ Initializing database connection pool...");
+console.log("🔍 Using Database Config:", {
+  host: dbConfig.host,
+  port: dbConfig.port,
+  user: dbConfig.user,
+  database: dbConfig.database,
+  password: dbConfig.password ? "***" : "NOT_SET", // Jangan log password
+});
+
+// Validasi: Pastikan semua variabel penting ada
+if (!dbConfig.host || !dbConfig.user || !dbConfig.password || !dbConfig.database || !dbConfig.port) {
+  console.error("❌ FATAL ERROR: Database environment variables are missing!");
+  console.error("Please ensure MYSQLHOST, MYSQLUSER, MYSQLPASSWORD, MYSQLDATABASE, and MYSQLPORT are set in Railway service variables.");
+  // Menghentikan aplikasi jika konfigurasi database tidak lengkap
+  // Kita beri komentar agar aplikasi tidak crash terus menerus saat debugging
+  // process.exit(1); 
 }
 
-// Konfigurasi untuk koneksi database
-const dbConfig = {
-    host: MYSQLHOST || 'localhost', // Fallback ke localhost jika tidak di Railway
-    port: MYSQLPORT ? parseInt(MYSQLPORT, 10) : 3306,
-    user: MYSQLUSER || 'root',
-    password: MYSQLPASSWORD || '',
-    database: MYSQLDATABASE || 'barokah_tour', // INI KUNCINYA!
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0,
-};
-
-// Buat connection pool
 const pool = mysql.createPool(dbConfig);
 
-// Fungsi untuk mengetes koneksi saat startup
-const testConnectionOnStartup = async () => {
-  let connection;
-  try {
-    console.log("🔄 Testing database connection on startup...");
-    connection = await pool.getConnection();
-    const [rows] = await connection.execute('SELECT 1 + 1 AS result');
-    console.log("✅ Database connection successful on startup. Result:", rows[0].result);
-  } catch (err) {
-    console.error("❌ Database connection failed on startup:", err.message);
-    console.error("   Using config:", {
-        host: dbConfig.host,
-        port: dbConfig.port,
-        user: dbConfig.user,
-        database: dbConfig.database,
-        password: dbConfig.password ? '***' : 'NOT SET'
-    });
-  } finally {
-    if (connection) connection.release();
-  }
+// Fungsi untuk mengetes koneksi
+const testConnection = async () => {
+  let connection;
+  try {
+    console.log("🔄 Testing database connection...");
+    connection = await pool.getConnection();
+    console.log("✅ Database connected successfully!");
+  } catch (err) {
+    console.error("❌ Database connection failed:", err.message);
+  } finally {
+    if (connection) connection.release();
+  }
 };
 
-// Panggil fungsi tes koneksi
-testConnectionOnStartup();
-
+// Jalankan tes koneksi saat modul ini di-load
+testConnection();
 
 export default pool;
+export { testConnection };
 
