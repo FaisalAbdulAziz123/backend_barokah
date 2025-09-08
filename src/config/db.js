@@ -1,63 +1,56 @@
 // config/db.js
 import mysql from "mysql2/promise";
 
-// Ambil konfigurasi dari environment variables
-const {
-  MYSQLHOST,
-  MYSQLPORT,
-  MYSQLUSER,
-  MYSQLPASSWORD,
-  MYSQLDATABASE,
-} = process.env;
-
-// Validasi environment variables
-if (!MYSQLHOST || !MYSQLUSER || !MYSQLPASSWORD || !MYSQLDATABASE || !MYSQLPORT) {
-  console.error("❌ FATAL ERROR: Database environment variables are missing!");
-  console.error("Please ensure MYSQLHOST, MYSQLUSER, MYSQLPASSWORD, MYSQLDATABASE, and MYSQLPORT are set.");
-  process.exit(1); // Hentikan aplikasi jika config tidak lengkap
-}
-
-// Konfigurasi pool koneksi
+// Variabel koneksi database akan dibaca langsung dari environment variables
+// yang disediakan oleh Railway (MYSQLHOST, MYSQLUSER, dll.)
 const dbConfig = {
-  host: MYSQLHOST,
-  port: parseInt(MYSQLPORT, 10),
-  user: MYSQLUSER,
-  password: MYSQLPASSWORD,
-  database: MYSQLDATABASE,
-  waitForConnections: true,
-  connectionLimit: 15, // Bisa disesuaikan untuk production
-  queueLimit: 0,
+  host: process.env.MYSQLHOST,
+  port: process.env.MYSQLPORT ? parseInt(process.env.MYSQLPORT, 10) : undefined,
+  user: process.env.MYSQLUSER,
+  password: process.env.MYSQLPASSWORD,
+  database: process.env.MYSQLDATABASE,
+  waitForConnections: true,
+  connectionLimit: 15, // Ditingkatkan sedikit untuk production
+  queueLimit: 0,
 };
 
-// Log untuk debugging (tanpa menampilkan password)
+// Log untuk debugging saat aplikasi startup
 console.log("✅ Initializing database connection pool...");
 console.log("🔍 Using Database Config:", {
-  host: dbConfig.host,
-  port: dbConfig.port,
-  user: dbConfig.user,
-  database: dbConfig.database,
-  password: "***", // Jangan tampilkan password
+  host: dbConfig.host,
+  port: dbConfig.port,
+  user: dbConfig.user,
+  database: dbConfig.database,
+  password: dbConfig.password ? "***" : "NOT_SET", // Jangan log password
 });
 
-// Buat pool koneksi
+// Validasi: Pastikan semua variabel penting ada saat di production
+if (process.env.RAILWAY_ENVIRONMENT && (!dbConfig.host || !dbConfig.user || !dbConfig.password || !dbConfig.database || !dbConfig.port)) {
+  console.error("❌ FATAL ERROR: Database environment variables are missing!");
+  console.error("Please ensure MYSQLHOST, MYSQLUSER, MYSQLPASSWORD, MYSQLDATABASE, and MYSQLPORT are set as variable references in your Railway service.");
+  // Hentikan aplikasi jika konfigurasi penting tidak ada di production
+  process.exit(1); 
+}
+
 const pool = mysql.createPool(dbConfig);
 
 // Fungsi untuk mengetes koneksi
 const testConnection = async () => {
-  let connection;
-  try {
-    console.log("🔄 Testing database connection...");
-    connection = await pool.getConnection();
-    console.log("✅ Database connected successfully!");
-  } catch (err) {
-    console.error("❌ Database connection failed:", err.message);
-  } finally {
-    if (connection) connection.release();
-  }
+  let connection;
+  try {
+    console.log("🔄 Testing database connection...");
+    connection = await pool.getConnection();
+    console.log("✅ Database connected successfully!");
+  } catch (err) {
+    console.error("❌ Database connection failed:", err.message);
+  } finally {
+    if (connection) connection.release();
+  }
 };
 
-// Jalankan tes koneksi saat modul di-load
+// Jalankan tes koneksi saat modul ini di-load
 testConnection();
 
 export default pool;
 export { testConnection };
+

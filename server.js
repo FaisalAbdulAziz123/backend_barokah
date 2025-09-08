@@ -9,8 +9,6 @@ import multer from "multer";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-
-// Import database configuration (FIXED PATH)
 import pool from "./src/config/db.js";
 
 // Load environment variables
