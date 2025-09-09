@@ -180,7 +180,7 @@ app.post("/api/bookings", async (req, res) => {
   }
 });
 
-// PUT /api/bookings/:id (ENDPOINT BARU UNTUK UPDATE DETAIL BOOKING)
+// PUT /api/bookings/:id (ENDPOINT DIPERBAIKI UNTUK UPDATE DETAIL BOOKING)
 app.put("/api/bookings/:id", async (req, res) => {
     const { id } = req.params;
     const {
@@ -223,11 +223,10 @@ app.put("/api/bookings/:id", async (req, res) => {
         res.status(200).json({ success: true, message: "Booking berhasil diupdate!" });
 
     } catch (err) {
-        console.error("❌ Error updating booking:", err);
-        res.status(500).json({ success: false, message: "Gagal mengupdate booking." });
+        console.error("❌ Error updating booking:", err); // Logging error yang lebih detail
+        res.status(500).json({ success: false, message: "Gagal mengupdate booking.", error: err.message });
     }
 });
-
 
 // DELETE /api/bookings/:id (sudah ada dan berfungsi)
 app.delete("/api/bookings/:id", async (req, res) => {
@@ -257,6 +256,7 @@ app.delete("/api/bookings/:id", async (req, res) => {
     connection.release();
   }
 });
+
 
 // GET /api/bookings - semua booking (admin)
 app.get("/api/bookings", async (req, res) => {
