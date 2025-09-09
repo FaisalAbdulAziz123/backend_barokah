@@ -708,7 +708,7 @@ app.post("/api/marketing", upload.single("foto_kunjungan"), async (req, res) => 
     return res.status(400).json({ error: "Field 'alamat' wajib diisi" });
   }
   const tanggal = new Date().toISOString().split("T")[0];
-  const foto_kunjungan = req.file ? req.file.filename : null;
+  const foto_kunjungan = req.file ? req.file.filename : req.body.foto_kunjungan || null;
 
   try {
     const sql = `
@@ -786,70 +786,41 @@ app.put("/api/admin/peserta/:id", async (req, res) => {
 });
 
 // ================== API UPDATE MARKETING ==================
-app.put("/api/admin/marketing/:id", upload.single("foto_kunjungan"), async (req, res) => {
+app.put("/api/admin/marketing/:id", upload.single('foto_kunjungan'), async (req, res) => {
   const { id } = req.params;
   const {
-    nama,
-    perusahaan,
-    alamat,
-    nama_kordinator,
-    kota_kordinator,
-    rencana_wisata,
-    rencana_pemberangkatan,
-    destinasi_tujuan,
-    jenis_trip,
-    telepon,
-    catatan
+    nama, perusahaan, alamat, nama_kordinator, kota_kordinator,
+    rencana_wisata, rencana_pemberangkatan, destinasi_tujuan,
+    jenis_trip, telepon, catatan
   } = req.body;
 
   try {
-    let sql, params;
+    // 🔥 PERBAIKAN: fallback ke req.body kalau tidak ada upload file
+    const foto_kunjungan = req.file ? req.file.filename : req.body.foto_kunjungan || null;
 
-    if (req.file) {
-      const foto_kunjungan = req.file.filename;
-      sql = `
-        UPDATE marketing 
+    let sql, params;
+    if (foto_kunjungan) {
+      // 🔥 PERBAIKAN: tambahkan foto_kunjungan ke query UPDATE
+      sql = `UPDATE marketing 
         SET nama = ?, perusahaan = ?, alamat = ?, nama_kordinator = ?, kota_kordinator = ?,
             rencana_wisata = ?, rencana_pemberangkatan = ?, destinasi_tujuan = ?,
             jenis_trip = ?, telepon = ?, foto_kunjungan = ?, catatan = ?
-        WHERE id = ?
-      `;
+        WHERE id = ?`;
       params = [
-        nama || null,
-        perusahaan || null,
-        alamat || null,
-        nama_kordinator || null,
-        kota_kordinator || null,
-        rencana_wisata || null,
-        rencana_pemberangkatan || null,
-        destinasi_tujuan || null,
-        jenis_trip || null,
-        telepon || null,
-        foto_kunjungan || null,
-        catatan || null,
-        id
+        nama, perusahaan, alamat, nama_kordinator, kota_kordinator,
+        rencana_wisata, rencana_pemberangkatan, destinasi_tujuan,
+        jenis_trip, telepon, foto_kunjungan, catatan, id
       ];
     } else {
-      sql = `
-        UPDATE marketing 
+      sql = `UPDATE marketing 
         SET nama = ?, perusahaan = ?, alamat = ?, nama_kordinator = ?, kota_kordinator = ?,
             rencana_wisata = ?, rencana_pemberangkatan = ?, destinasi_tujuan = ?,
             jenis_trip = ?, telepon = ?, catatan = ?
-        WHERE id = ?
-      `;
+        WHERE id = ?`;
       params = [
-        nama || null,
-        perusahaan || null,
-        alamat || null,
-        nama_kordinator || null,
-        kota_kordinator || null,
-        rencana_wisata || null,
-        rencana_pemberangkatan || null,
-        destinasi_tujuan || null,
-        jenis_trip || null,
-        telepon || null,
-        catatan || null,
-        id
+        nama, perusahaan, alamat, nama_kordinator, kota_kordinator,
+        rencana_wisata, rencana_pemberangkatan, destinasi_tujuan,
+        jenis_trip, telepon, catatan, id
       ];
     }
 
@@ -865,6 +836,7 @@ app.put("/api/admin/marketing/:id", upload.single("foto_kunjungan"), async (req,
     res.status(500).json({ error: err.message });
   }
 });
+
 
 
 // ------------------ ERROR HANDLING ------------------
