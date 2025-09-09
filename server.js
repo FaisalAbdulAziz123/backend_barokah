@@ -513,6 +513,57 @@ app.post("/api/transactions", async (req, res) => {
 
 // ------------------ SCANNER ENDPOINTS ------------------
 
+app.put("/api/users/:id", async (req, res) => {
+    const { id } = req.params;
+    const { full_name, email, username, password } = req.body;
+
+    // Validasi dasar
+    if (!full_name || !email || !username) {
+        return res.status(400).json({ success: false, message: "Nama lengkap, email, dan username wajib diisi." });
+    }
+
+    try {
+        // Jika password diisi, kita hash dulu. Jika tidak, kita tidak update passwordnya.
+        if (password) {
+            const hash = await bcrypt.hash(password, saltRounds);
+            const sql = "UPDATE users SET full_name = ?, email = ?, username = ?, password = ? WHERE id = ?";
+            await pool.execute(sql, [full_name, email, username, hash, id]);
+        } else {
+            const sql = "UPDATE users SET full_name = ?, email = ?, username = ? WHERE id = ?";
+            await pool.execute(sql, [full_name, email, username, id]);
+        }
+        
+        res.status(200).json({ success: true, message: "Pengguna berhasil diupdate!" });
+
+    } catch (err) {
+        console.error("❌ Error updating user:", err);
+        if (err.code === "ER_DUP_ENTRY") {
+            return res.status(409).json({ success: false, message: "Username atau Email sudah digunakan oleh pengguna lain." });
+        }
+        res.status(500).json({ success: false, message: "Gagal mengupdate pengguna." });
+    }
+});
+
+// DELETE /api/users/:id (ENDPOINT BARU UNTUK DELETE)
+app.delete("/api/users/:id", async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const sql = "DELETE FROM users WHERE id = ?";
+        const [result] = await pool.execute(sql, [id]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, message: "Pengguna tidak ditemukan." });
+        }
+
+        res.status(200).json({ success: true, message: "Pengguna berhasil dihapus." });
+
+    } catch (err) {
+        console.error("❌ Error deleting user:", err);
+        res.status(500).json({ success: false, message: "Gagal menghapus pengguna." });
+    }
+});
+
 app.post("/api/bookings/scan", async (req, res) => {
   const { participantId } = req.body;
   
