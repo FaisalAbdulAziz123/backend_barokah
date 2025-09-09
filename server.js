@@ -703,6 +703,10 @@ app.post("/api/marketing", upload.single("foto_kunjungan"), async (req, res) => 
     catatan
   } = req.body;
 
+  
+  if (!alamat) {
+    return res.status(400).json({ error: "Field 'alamat' wajib diisi" });
+  }
   const tanggal = new Date().toISOString().split("T")[0];
   const foto_kunjungan = req.file ? req.file.filename : null;
 
