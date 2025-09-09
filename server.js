@@ -647,330 +647,221 @@ app.post("/api/users/login", async (req, res) => {
   }
 });
 
-// ================== API UNTUK BUKU TAMU ==================
-
-// Simpan data peserta
+// ================== API PESERTA ==================
 app.post("/api/peserta", async (req, res) => {
-  const { nama, alamat, tempat_lahir, tanggal_lahir, telepon, tujuan } = req.body;
-  const tanggal = new Date().toISOString().split('T')[0];
-  
-  try {
-    const sql = `INSERT INTO peserta (nama, alamat, tempat_lahir, tanggal_lahir, telepon, tujuan, tanggal) VALUES (?, ?, ?, ?, ?, ?, ?)`;
-    
-    const [result] = await pool.execute(sql, [
-      nama, alamat, tempat_lahir, tanggal_lahir, telepon, tujuan, tanggal
-    ]);
-    
-    res.status(201).json({ 
-      message: "Data peserta berhasil disimpan",
-      id: result.insertId 
-    });
-  } catch (err) {
-    console.error("Error saving peserta:", err);
-    res.status(500).json({ error: err.message });
-  }
+  const {
+    nama,
+    alamat,
+    tempat_lahir,
+    tanggal_lahir,
+    telepon,
+    tujuan
+  } = req.body;
+
+  const tanggal = new Date().toISOString().split("T")[0];
+
+  try {
+    const sql = `
+      INSERT INTO peserta 
+      (nama, alamat, tempat_lahir, tanggal_lahir, telepon, tujuan, tanggal) 
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    const [result] = await pool.execute(sql, [
+      nama || null,
+      alamat || null,
+      tempat_lahir || null,
+      tanggal_lahir || null,
+      telepon || null,
+      tujuan || null,
+      tanggal
+    ]);
+
+    res.status(201).json({
+      message: "Data peserta berhasil disimpan",
+      id: result.insertId
+    });
+  } catch (err) {
+    console.error("Error saving peserta:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// Simpan data marketing
+// ================== API MARKETING ==================
 app.post("/api/marketing", upload.single("foto_kunjungan"), async (req, res) => {
-  const {
-    nama, alamat, perusahaan, nama_kordinator, kota_kordinator,
-    rencana_wisata, rencana_pemberangkatan, destinasi_tujuan,
-    jenis_trip, telepon, catatan
-  } = req.body;
+  const {
+    nama,
+    alamat,
+    perusahaan,
+    nama_kordinator,
+    kota_kordinator,
+    rencana_wisata,
+    rencana_pemberangkatan,
+    destinasi_tujuan,
+    jenis_trip,
+    telepon,
+    catatan
+  } = req.body;
 
-  const tanggal = new Date().toISOString().split("T")[0];
-  const foto_kunjungan = req.file ? req.file.filename : null;
+  const tanggal = new Date().toISOString().split("T")[0];
+  const foto_kunjungan = req.file ? req.file.filename : null;
 
-  try {
-    const sql = `INSERT INTO marketing (tanggal, nama, alamat, perusahaan, nama_kordinator, kota_kordinator, rencana_wisata, rencana_pemberangkatan, destinasi_tujuan, jenis_trip, telepon, foto_kunjungan, catatan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+  try {
+    const sql = `
+      INSERT INTO marketing 
+      (tanggal, nama, alamat, perusahaan, nama_kordinator, kota_kordinator, 
+       rencana_wisata, rencana_pemberangkatan, destinasi_tujuan, jenis_trip, 
+       telepon, foto_kunjungan, catatan) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
 
-    const [result] = await pool.execute(sql, [
-      tanggal, nama, alamat, perusahaan, nama_kordinator, kota_kordinator,
-      rencana_wisata, rencana_pemberangkatan, destinasi_tujuan,
-      jenis_trip, telepon, foto_kunjungan, catatan
-    ]);
+    const [result] = await pool.execute(sql, [
+      tanggal,
+      nama || null,
+      alamat || null,
+      perusahaan || null,
+      nama_kordinator || null,
+      kota_kordinator || null,
+      rencana_wisata || null,
+      rencana_pemberangkatan || null,
+      destinasi_tujuan || null,
+      jenis_trip || null,
+      telepon || null,
+      foto_kunjungan || null,
+      catatan || null
+    ]);
 
-    res.status(201).json({
-      message: "Data marketing berhasil disimpan",
-      id: result.insertId
-    });
-  } catch (err) {
-    console.error("Error saving marketing:", err);
-    res.status(500).json({ error: err.message });
-  }
+    res.status(201).json({
+      message: "Data marketing berhasil disimpan",
+      id: result.insertId
+    });
+  } catch (err) {
+    console.error("Error saving marketing:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// Ambil data peserta dengan pagination
-app.get("/api/peserta", async (req, res) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = 10;
-  const offset = (page - 1) * limit;
-  
-  try {
-    const countQuery = "SELECT COUNT(*) as total FROM peserta";
-    const dataQuery = "SELECT * FROM peserta ORDER BY created_at DESC LIMIT ? OFFSET ?";
-    
-    const [countResult] = await pool.execute(countQuery);
-    const total = countResult[0].total;
-    const totalPages = Math.ceil(total / limit);
-    
-    const [dataResult] = await pool.execute(dataQuery, [limit, offset]);
-    
-    res.json({
-      data: dataResult,
-      totalPages: totalPages,
-      currentPage: page,
-      totalItems: total
-    });
-  } catch (err) {
-    console.error("Error fetching peserta:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Ambil data marketing dengan pagination
-app.get("/api/marketing", async (req, res) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = 10;
-  const offset = (page - 1) * limit;
-  
-  try {
-    const countQuery = "SELECT COUNT(*) as total FROM marketing";
-    const dataQuery = "SELECT * FROM marketing ORDER BY created_at DESC LIMIT ? OFFSET ?";
-    
-    const [countResult] = await pool.execute(countQuery);
-    const total = countResult[0].total;
-    const totalPages = Math.ceil(total / limit);
-    
-    const [dataResult] = await pool.execute(dataQuery, [limit, offset]);
-    
-    res.json({
-      data: dataResult,
-      totalPages: totalPages,
-      currentPage: page,
-      totalItems: total
-    });
-  } catch (err) {
-    console.error("Error fetching marketing:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ================== API UNTUK STATISTIK ==================
-
-// Statistik peserta
-app.get("/api/stats/peserta", async (req, res) => {
-  const today = new Date().toISOString().split('T')[0];
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayFormatted = yesterday.toISOString().split('T')[0];
-  
-  const now = new Date();
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - now.getDay());
-  const startOfWeekFormatted = startOfWeek.toISOString().split('T')[0];
-  
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const startOfMonthFormatted = startOfMonth.toISOString().split('T')[0];
-  
-  try {
-    const queries = [
-      pool.execute('SELECT COUNT(*) as count FROM peserta WHERE tanggal = ?', [today]),
-      pool.execute('SELECT COUNT(*) as count FROM peserta WHERE tanggal = ?', [yesterdayFormatted]),
-      pool.execute('SELECT COUNT(*) as count FROM peserta WHERE tanggal >= ?', [startOfWeekFormatted]),
-      pool.execute('SELECT COUNT(*) as count FROM peserta WHERE tanggal >= ?', [startOfMonthFormatted]),
-      pool.execute('SELECT COUNT(*) as count FROM peserta')
-    ];
-    
-    const results = await Promise.all(queries);
-    
-    res.json({
-      today: results[0][0][0].count,
-      yesterday: results[1][0][0].count,
-      week: results[2][0][0].count,
-      month: results[3][0][0].count,
-      total: results[4][0][0].count
-    });
-  } catch (err) {
-    console.error("Error fetching peserta stats:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Statistik marketing
-app.get("/api/stats/marketing", async (req, res) => {
-  const today = new Date().toISOString().split('T')[0];
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayFormatted = yesterday.toISOString().split('T')[0];
-  
-  const now = new Date();
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - now.getDay());
-  const startOfWeekFormatted = startOfWeek.toISOString().split('T')[0];
-  
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const startOfMonthFormatted = startOfMonth.toISOString().split('T')[0];
-  
-  try {
-    const queries = [
-      pool.execute('SELECT COUNT(*) as count FROM marketing WHERE tanggal = ?', [today]),
-      pool.execute('SELECT COUNT(*) as count FROM marketing WHERE tanggal = ?', [yesterdayFormatted]),
-      pool.execute('SELECT COUNT(*) as count FROM marketing WHERE tanggal >= ?', [startOfWeekFormatted]),
-      pool.execute('SELECT COUNT(*) as count FROM marketing WHERE tanggal >= ?', [startOfMonthFormatted]),
-      pool.execute('SELECT COUNT(*) as count FROM marketing')
-    ];
-    
-    const results = await Promise.all(queries);
-    
-    res.json({
-      today: results[0][0][0].count,
-      yesterday: results[1][0][0].count,
-      week: results[2][0][0].count,
-      month: results[3][0][0].count,
-      total: results[4][0][0].count
-    });
-  } catch (err) {
-    console.error("Error fetching marketing stats:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ================== API UNTUK ADMIN ==================
-
-// Ambil semua data peserta untuk admin
-app.get("/api/admin/peserta", async (req, res) => {
-  try {
-    const [results] = await pool.execute("SELECT * FROM peserta ORDER BY created_at DESC");
-    res.json(results);
-  } catch (err) {
-    console.error("Error fetching peserta:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Ambil semua data marketing untuk admin
-app.get("/api/admin/marketing", async (req, res) => {
-  try {
-    const [results] = await pool.execute("SELECT * FROM marketing ORDER BY created_at DESC");
-    res.json(results);
-  } catch (err) {
-    console.error("Error fetching marketing:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Hapus data peserta
-app.delete("/api/admin/peserta/:id", async (req, res) => {
-  const { id } = req.params;
-  
-  try {
-    const [result] = await pool.execute("DELETE FROM peserta WHERE id = ?", [id]);
-    
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Data peserta tidak ditemukan" });
-    }
-    
-    res.json({ message: "Data peserta berhasil dihapus" });
-  } catch (err) {
-    console.error("Error deleting peserta:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Hapus data marketing
-app.delete("/api/admin/marketing/:id", async (req, res) => {
-  const { id } = req.params;
-  
-  try {
-    const [result] = await pool.execute("DELETE FROM marketing WHERE id = ?", [id]);
-    
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Data marketing tidak ditemukan" });
-    }
-    
-    res.json({ message: "Data marketing berhasil dihapus" });
-  } catch (err) {
-    console.error("Error deleting marketing:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Edit data peserta
+// ================== API UPDATE PESERTA ==================
 app.put("/api/admin/peserta/:id", async (req, res) => {
-  const { id } = req.params;
-  const { nama, alamat, tempat_lahir, tanggal_lahir, telepon, tujuan } = req.body;
-  
-  try {
-    const sql = `UPDATE peserta 
-      SET nama = ?, alamat = ?, tempat_lahir = ?, tanggal_lahir = ?, telepon = ?, tujuan = ?
-      WHERE id = ?`;
-    
-    const [result] = await pool.execute(sql, [
-      nama, alamat, tempat_lahir, tanggal_lahir, telepon, tujuan, id
-    ]);
-    
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Data peserta tidak ditemukan" });
-    }
-    
-    res.json({ message: "Data peserta berhasil diupdate" });
-  } catch (err) {
-    console.error("Error updating peserta:", err);
-    res.status(500).json({ error: err.message });
-  }
+  const { id } = req.params;
+  const {
+    nama,
+    alamat,
+    tempat_lahir,
+    tanggal_lahir,
+    telepon,
+    tujuan
+  } = req.body;
+
+  try {
+    const sql = `
+      UPDATE peserta 
+      SET nama = ?, alamat = ?, tempat_lahir = ?, tanggal_lahir = ?, telepon = ?, tujuan = ?
+      WHERE id = ?
+    `;
+
+    const [result] = await pool.execute(sql, [
+      nama || null,
+      alamat || null,
+      tempat_lahir || null,
+      tanggal_lahir || null,
+      telepon || null,
+      tujuan || null,
+      id
+    ]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Data peserta tidak ditemukan" });
+    }
+
+    res.json({ message: "Data peserta berhasil diupdate" });
+  } catch (err) {
+    console.error("Error updating peserta:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// Edit data marketing
-app.put("/api/admin/marketing/:id", upload.single('foto_kunjungan'), async (req, res) => {
-  const { id } = req.params;
-  const {
-    nama, perusahaan, alamat, nama_kordinator, kota_kordinator,
-    rencana_wisata, rencana_pemberangkatan, destinasi_tujuan,
-    jenis_trip, telepon, catatan
-  } = req.body;
-  
-  try {
-    let sql, params;
-    
-    if (req.file) {
-      const foto_kunjungan = req.file.filename;
-      sql = `UPDATE marketing 
-        SET nama = ?, perusahaan = ?, alamat = ?, nama_kordinator = ?, kota_kordinator = ?,
-            rencana_wisata = ?, rencana_pemberangkatan = ?, destinasi_tujuan = ?,
-            jenis_trip = ?, telepon = ?, foto_kunjungan = ?, catatan = ?
-        WHERE id = ?`;
-      params = [
-        nama, perusahaan, alamat, nama_kordinator, kota_kordinator,
-        rencana_wisata, rencana_pemberangkatan, destinasi_tujuan,
-        jenis_trip, telepon, foto_kunjungan, catatan, id
-      ];
-    } else {
-      sql = `UPDATE marketing 
-        SET nama = ?, perusahaan = ?, alamat = ?, nama_kordinator = ?, kota_kordinator = ?,
-            rencana_wisata = ?, rencana_pemberangkatan = ?, destinasi_tujuan = ?,
-            jenis_trip = ?, telepon = ?, catatan = ?
-        WHERE id = ?`;
-      params = [
-        nama, perusahaan, alamat, nama_kordinator, kota_kordinator,
-        rencana_wisata, rencana_pemberangkatan, destinasi_tujuan,
-        jenis_trip, telepon, catatan, id
-      ];
-    }
-    
-    const [result] = await pool.execute(sql, params);
-    
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Data marketing tidak ditemukan" });
-    }
-    
-    res.json({ message: "Data marketing berhasil diupdate" });
-  } catch (err) {
-    console.error("Error updating marketing:", err);
-    res.status(500).json({ error: err.message });
-  }
+// ================== API UPDATE MARKETING ==================
+app.put("/api/admin/marketing/:id", upload.single("foto_kunjungan"), async (req, res) => {
+  const { id } = req.params;
+  const {
+    nama,
+    perusahaan,
+    alamat,
+    nama_kordinator,
+    kota_kordinator,
+    rencana_wisata,
+    rencana_pemberangkatan,
+    destinasi_tujuan,
+    jenis_trip,
+    telepon,
+    catatan
+  } = req.body;
+
+  try {
+    let sql, params;
+
+    if (req.file) {
+      const foto_kunjungan = req.file.filename;
+      sql = `
+        UPDATE marketing 
+        SET nama = ?, perusahaan = ?, alamat = ?, nama_kordinator = ?, kota_kordinator = ?,
+            rencana_wisata = ?, rencana_pemberangkatan = ?, destinasi_tujuan = ?,
+            jenis_trip = ?, telepon = ?, foto_kunjungan = ?, catatan = ?
+        WHERE id = ?
+      `;
+      params = [
+        nama || null,
+        perusahaan || null,
+        alamat || null,
+        nama_kordinator || null,
+        kota_kordinator || null,
+        rencana_wisata || null,
+        rencana_pemberangkatan || null,
+        destinasi_tujuan || null,
+        jenis_trip || null,
+        telepon || null,
+        foto_kunjungan || null,
+        catatan || null,
+        id
+      ];
+    } else {
+      sql = `
+        UPDATE marketing 
+        SET nama = ?, perusahaan = ?, alamat = ?, nama_kordinator = ?, kota_kordinator = ?,
+            rencana_wisata = ?, rencana_pemberangkatan = ?, destinasi_tujuan = ?,
+            jenis_trip = ?, telepon = ?, catatan = ?
+        WHERE id = ?
+      `;
+      params = [
+        nama || null,
+        perusahaan || null,
+        alamat || null,
+        nama_kordinator || null,
+        kota_kordinator || null,
+        rencana_wisata || null,
+        rencana_pemberangkatan || null,
+        destinasi_tujuan || null,
+        jenis_trip || null,
+        telepon || null,
+        catatan || null,
+        id
+      ];
+    }
+
+    const [result] = await pool.execute(sql, params);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Data marketing tidak ditemukan" });
+    }
+
+    res.json({ message: "Data marketing berhasil diupdate" });
+  } catch (err) {
+    console.error("Error updating marketing:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
+
 
 // ------------------ ERROR HANDLING ------------------
 
