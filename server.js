@@ -180,7 +180,7 @@ app.post("/api/bookings", async (req, res) => {
   }
 });
 
-// ✅ PUT /api/bookings/:id - Update booking (flexible update + foto)
+// ✅ PUT /api/bookings/:id - Update booking (flexible update)
 app.put("/api/bookings/:id", async (req, res) => {
   const { id } = req.params;
   const {
@@ -188,110 +188,250 @@ app.put("/api/bookings/:id", async (req, res) => {
     customer_email,
     customer_phone,
     total_price,
-    status,
-    foto // tambahkan jika ada field foto
+    status
   } = req.body;
 
   try {
+    // Validasi ID
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "ID booking tidak valid." 
+      });
+    }
+
+    // Cek apakah booking exists
+    const checkSql = "SELECT id FROM bookings WHERE id = ?";
+    const [existingBooking] = await pool.execute(checkSql, [id]);
+    
+    if (existingBooking.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Booking tidak ditemukan." 
+      });
+    }
+
     // Buat array untuk query dinamis
     const fields = [];
     const values = [];
 
-    if (customer_name) {
+    // Hanya update field yang dikirim
+    if (customer_name !== undefined && customer_name !== null) {
       fields.push("customer_name = ?");
       values.push(customer_name);
     }
-    if (customer_email) {
+    if (customer_email !== undefined && customer_email !== null) {
       fields.push("customer_email = ?");
       values.push(customer_email);
     }
-    if (customer_phone !== undefined) {
+    if (customer_phone !== undefined && customer_phone !== null) {
       fields.push("customer_phone = ?");
-      values.push(customer_phone);
+      values.push(customer_phone || null); // Allow empty string to be saved as null
     }
-    if (total_price !== undefined) {
+    if (total_price !== undefined && total_price !== null) {
       fields.push("total_price = ?");
-      values.push(total_price);
+      values.push(parseFloat(total_price) || 0);
     }
-    if (status) {
+    if (status !== undefined && status !== null) {
       fields.push("status = ?");
       values.push(status);
     }
-    if (foto) {
-      fields.push("foto = ?");
-      values.push(foto);
+
+    // Tambahkan updated_at
+    fields.push("updated_at = CURRENT_TIMESTAMP");
+
+    if (fields.length <= 1) { // <= 1 karena updated_at selalu ditambahkan
+      return res.status(400).json({ 
+        success: false, 
+        message: "Tidak ada data yang valid untuk diupdate." 
+      });
     }
 
-    if (fields.length === 0) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Tidak ada data yang dikirim untuk update." });
-    }
-
-    // Tambahkan id di akhir values
-    values.push(id);
+    // Tambahkan id di akhir values untuk WHERE clause
+    values.push(parseInt(id));
 
     const sql = `UPDATE bookings SET ${fields.join(", ")} WHERE id = ?`;
+    console.log("Update SQL:", sql);
+    console.log("Update Values:", values);
+
     const [result] = await pool.execute(sql, values);
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: "Booking tidak ditemukan." });
+      return res.status(404).json({ 
+        success: false, 
+        message: "Gagal mengupdate booking. Data tidak ditemukan." 
+      });
     }
 
-    res.status(200).json({ success: true, message: "Booking berhasil diupdate!" });
+    // Ambil data booking yang sudah diupdate untuk response
+    const [updatedBooking] = await pool.execute(
+      "SELECT * FROM bookings WHERE id = ?", 
+      [id]
+    );
+
+    res.status(200).json({ 
+      success: true, 
+      message: "Booking berhasil diupdate!",
+      data: updatedBooking[0]
+    });
+
   } catch (err) {
     console.error("❌ Error updating booking:", err);
     res.status(500).json({
       success: false,
-      message: "Gagal mengupdate booking.",
-      error: err.message,
+      message: "Gagal mengupdate booking. Terjadi kesalahan server.",
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
     });
   }
 });
-
 
 // ✅ DELETE /api/bookings/:id - Hapus booking + peserta
 app.delete("/api/bookings/:id", async (req, res) => {
   const { id } = req.params;
-  const connection = await pool.getConnection();
+  
+  // Validasi ID
+  if (!id || isNaN(id)) {
+    return res.status(400).json({ 
+      success: false, 
+      message: "ID booking tidak valid." 
+    });
+  }
 
+  let connection;
+  
   try {
+    connection = await pool.getConnection();
     await connection.beginTransaction();
 
-    // 🔹 Hapus dulu semua peserta (jika ada relasi)
-    const deleteParticipantsSql = "DELETE FROM participants WHERE booking_id = ?";
-    await connection.execute(deleteParticipantsSql, [id]);
-
-    // 🔹 Hapus booking utama
-    const deleteBookingSql = "DELETE FROM bookings WHERE id = ?";
-    const [result] = await connection.execute(deleteBookingSql, [id]);
-
-    if (result.affectedRows === 0) {
+    // Cek apakah booking exists
+    const [existingBooking] = await connection.execute(
+      "SELECT id, customer_name FROM bookings WHERE id = ?", 
+      [parseInt(id)]
+    );
+    
+    if (existingBooking.length === 0) {
       await connection.rollback();
       return res.status(404).json({
         success: false,
-        message: `Booking dengan id=${id} tidak ditemukan.`,
+        message: `Booking dengan ID ${id} tidak ditemukan.`
+      });
+    }
+
+    // 🔹 Hapus dulu semua peserta yang terkait (jika ada tabel participants)
+    // Periksa dulu apakah ada peserta
+    const [participants] = await connection.execute(
+      "SELECT COUNT(*) as count FROM participants WHERE booking_id = ?", 
+      [parseInt(id)]
+    );
+    
+    if (participants[0].count > 0) {
+      const deleteParticipantsSql = "DELETE FROM participants WHERE booking_id = ?";
+      await connection.execute(deleteParticipantsSql, [parseInt(id)]);
+      console.log(`Deleted ${participants[0].count} participants for booking ${id}`);
+    }
+
+    // 🔹 Hapus booking utama
+    const deleteBookingSql = "DELETE FROM bookings WHERE id = ?";
+    const [deleteResult] = await connection.execute(deleteBookingSql, [parseInt(id)]);
+
+    if (deleteResult.affectedRows === 0) {
+      await connection.rollback();
+      return res.status(500).json({
+        success: false,
+        message: "Gagal menghapus booking. Terjadi kesalahan."
       });
     }
 
     await connection.commit();
+    
     return res.status(200).json({
       success: true,
-      message: `Booking dengan id=${id} berhasil dihapus beserta semua peserta.`,
+      message: `Booking "${existingBooking[0].customer_name}" berhasil dihapus beserta semua data terkait.`,
+      deleted_id: parseInt(id)
     });
+
   } catch (err) {
-    await connection.rollback();
+    if (connection) {
+      await connection.rollback();
+    }
+    
     console.error("❌ Error deleting booking:", err);
+    
+    // Handle foreign key constraint error
+    if (err.code === 'ER_ROW_IS_REFERENCED_2') {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot delete booking. There are related records that must be deleted first."
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: "Gagal menghapus booking. Terjadi kesalahan server.",
-      error: err.message,
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
     });
+    
   } finally {
-    connection.release();
+    if (connection) {
+      connection.release();
+    }
   }
 });
 
+// ✅ PATCH /api/bookings/:id/status - Update hanya status booking (optional helper endpoint)
+app.patch("/api/bookings/:id/status", async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  try {
+    // Validasi
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "ID booking tidak valid." 
+      });
+    }
+
+    if (!status) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Status harus diisi." 
+      });
+    }
+
+    // Valid status values (sesuaikan dengan kebutuhan)
+    const validStatuses = ['PENDING', 'CONFIRMED', 'LUNAS', 'CANCELED'];
+    if (!validStatuses.includes(status.toUpperCase())) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Status harus salah satu dari: ${validStatuses.join(', ')}` 
+      });
+    }
+
+    const sql = "UPDATE bookings SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+    const [result] = await pool.execute(sql, [status.toUpperCase(), parseInt(id)]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Booking tidak ditemukan." 
+      });
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      message: `Status booking berhasil diubah menjadi ${status.toUpperCase()}!` 
+    });
+
+  } catch (err) {
+    console.error("❌ Error updating booking status:", err);
+    res.status(500).json({
+      success: false,
+      message: "Gagal mengupdate status booking.",
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+    });
+  }
+});
 
 // GET /api/bookings - semua booking (admin)
 app.get("/api/bookings", async (req, res) => {
