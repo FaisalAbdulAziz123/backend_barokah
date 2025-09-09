@@ -180,6 +180,84 @@ app.post("/api/bookings", async (req, res) => {
   }
 });
 
+// PUT /api/bookings/:id (ENDPOINT BARU UNTUK UPDATE DETAIL BOOKING)
+app.put("/api/bookings/:id", async (req, res) => {
+    const { id } = req.params;
+    const {
+        customer_name,
+        customer_email,
+        customer_phone,
+        total_price,
+        status
+    } = req.body;
+
+    // Validasi dasar
+    if (!customer_name || !customer_email || total_price === undefined || !status) {
+        return res.status(400).json({ success: false, message: "Data yang dikirim tidak lengkap." });
+    }
+
+    try {
+        const sql = `
+            UPDATE bookings 
+            SET 
+                customer_name = ?, 
+                customer_email = ?, 
+                customer_phone = ?, 
+                total_price = ?, 
+                status = ?
+            WHERE id = ?
+        `;
+        const [result] = await pool.execute(sql, [
+            customer_name,
+            customer_email,
+            customer_phone || null,
+            total_price,
+            status,
+            id
+        ]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, message: "Booking tidak ditemukan." });
+        }
+
+        res.status(200).json({ success: true, message: "Booking berhasil diupdate!" });
+
+    } catch (err) {
+        console.error("❌ Error updating booking:", err);
+        res.status(500).json({ success: false, message: "Gagal mengupdate booking." });
+    }
+});
+
+
+// DELETE /api/bookings/:id (sudah ada dan berfungsi)
+app.delete("/api/bookings/:id", async (req, res) => {
+  const id = req.params.id;
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    // Hapus dulu semua peserta yang terhubung dengan booking ini
+    const deleteParticipantsSql = "DELETE FROM participants WHERE booking_id = ?";
+    await connection.execute(deleteParticipantsSql, [id]);
+    // Baru hapus booking utamanya
+    const deleteBookingSql = "DELETE FROM bookings WHERE id = ?";
+    const [result] = await connection.execute(deleteBookingSql, [id]);
+
+    if (result.affectedRows === 0) {
+      await connection.rollback();
+      return res.status(404).json({ success: false, message: "Booking tidak ditemukan." });
+    }
+
+    await connection.commit();
+    return res.status(200).json({ success: true, message: "Booking berhasil dihapus." });
+  } catch (err) {
+    await connection.rollback();
+    console.error("❌ Error deleting booking:", err);
+    res.status(500).json({ success: false, message: "Kesalahan server." });
+  } finally {
+    connection.release();
+  }
+});
+
 // GET /api/bookings - semua booking (admin)
 app.get("/api/bookings", async (req, res) => {
   try {
